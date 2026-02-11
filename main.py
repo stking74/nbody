@@ -42,6 +42,39 @@ class Vector:
         u = self/self.magnitude
         return u
     
+    def rotate(self, angle, axis):
+        '''
+        Rotate Vector counterclockwise around another vector by the specified
+        angle. Utilizes Rodrigues' rotation formula.
+
+        Parameters
+        ----------
+        angle : float
+            Angle of rotation, in degrees.
+        axis : Vector
+            Axis about which the rotation will be performed.
+
+        Returns
+        -------
+        rotated : Vector
+            Rotated vector.
+        '''
+        
+        def deg2rad(deg):
+            rad = (deg / 360) * 2 * math.pi
+            return rad
+    
+        def rad2deg(rad):
+            deg = (rad / 2 / math.pi) * 360
+            return deg
+        
+        angle = deg2rad(angle)
+        term1 = self * math.cos(angle)
+        term2 = cross(axis, self) * math.sin(angle)
+        term3 = axis * dot(axis, self) * (1 - math.cos(angle))
+        rotated = term1 + term2 + term3
+        return rotated
+            
     def __iter__(self):
         for e in self.elements:
             yield e
@@ -346,18 +379,29 @@ def lagrange(body1, body2):
     
     #Obtain vector from major to minor
     displacement = minor.position - major.position
+    R = displacement.magnitude
     
     #Calculate L1
-    k = (major.mass/minor.mass) ** (1/2)
-    num = displacement.magnitude * k
-    den = 1 + k
-    L1 = displacement.unit() * (num/den)
+    u = minor.mass / (major.mass + minor.mass)
+    r = R * (u/3)**(1/3)
+    L1 = minor.position - (displacement.unit() * r)
     
     #Calculate L2
-    den = k - 1
-    L2 = displacement.unit() * (num/den)
+    L2 = minor.position + (displacement.unit() * r)
     
-    l_points = (L1, L2)
+    r = R * (7/12) * u
+    L3 = (displacement * -1) + displacement.unit() * r 
+    
+    #Calculate L4
+    barycenter = center_of_mass([major, minor])
+    minor_lookahead = minor.position + minor.velocity
+    norm = cross(displacement, minor_lookahead - barycenter).unit()
+    L4 = displacement.rotate(60, norm)
+    
+    #Calculate L5
+    L5 = displacement.rotate(-60, norm)
+    
+    l_points = (L1, L2, L3, L4, L5)
     
     return l_points
         
@@ -404,7 +448,7 @@ def dot(v1, v2):
     '''
     assert len(v1) == len(v2)
     d = 0
-    for i in len(v1):
+    for i in range(len(v1)):
         d += v1[i] * v2[i]
     return d
 
